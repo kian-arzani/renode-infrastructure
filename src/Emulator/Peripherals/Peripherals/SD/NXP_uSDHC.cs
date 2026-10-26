@@ -20,8 +20,9 @@ namespace Antmicro.Renode.Peripherals.SD
         IDoubleWordPeripheral, IKnownSize,
         IProvidesRegisterCollection<DoubleWordRegisterCollection>
     {
-        public NXP_uSDHC(IMachine machine) : base(machine)
+        public NXP_uSDHC(IMachine machine, bool dmaSupported = false) : base(machine)
         {
+            this.dmaSupported = dmaSupported;
             IRQ = new GPIO();
             sysbus = machine.GetSystemBus(this);
             RegistersCollection = new DoubleWordRegisterCollection(this);
@@ -165,7 +166,7 @@ namespace Antmicro.Renode.Peripherals.SD
             Registers.HostCtrlCap.Define(this)
                 .WithReservedBits(0, 21)
                 .WithFlag(21, FieldMode.Read, valueProviderCallback: _ => true, name: "HSSUP")
-                .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => false, name: "DMASUP")
+                .WithFlag(22, FieldMode.Read, valueProviderCallback: _ => dmaSupported, name: "DMASUP")
                 .WithFlag(23, FieldMode.Read, valueProviderCallback: _ => false, name: "SRSUP")
                 .WithFlag(24, FieldMode.Read, valueProviderCallback: _ => true, name: "VS33")
                 .WithFlag(25, FieldMode.Read, valueProviderCallback: _ => true, name: "VS30")
@@ -427,6 +428,7 @@ namespace Antmicro.Renode.Peripherals.SD
         private IFlagRegisterField forceSDCardClockEnable;
         private IFlagRegisterField sdClockEnable;
 
+        private readonly bool dmaSupported;
         private readonly IBusController sysbus;
         private readonly IValueRegisterField[] responseFields = new IValueRegisterField[4];
 
