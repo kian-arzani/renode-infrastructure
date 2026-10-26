@@ -85,6 +85,18 @@ namespace Antmicro.Renode.Peripherals.CPU
             this.Log(LogLevel.Debug, "Adding a handler for PSCI function: 0x{0:X}", functionIdentifier);
         }
 
+        // Reject SMC #0 calls with this exact function ID and x1 <= the
+        // maximum, returning SMC_UNK. Function ID zero disables the filter.
+        // Other calls continue through the configured native/PSCI path.
+        public void SetSMCRejection(uint functionId, ulong maximumFirstArgument)
+        {
+            using(machine.ObtainPausedState(true))
+            {
+                TlibSetSmcRejection(functionId, maximumFirstArgument);
+                ClearTranslationCache();
+            }
+        }
+
         public PSCIConduitEmulationMethod PSCIEmulationMethod
         {
             get
@@ -350,6 +362,9 @@ namespace Antmicro.Renode.Peripherals.CPU
         private readonly Action<uint> TlibPsciHandlerEnable;
 
         [Import]
+        private readonly Action<uint, ulong> TlibSetSmcRejection;
+
+        [Import]
         private readonly Action<uint> TlibSetRndrSupported;
 
         [Import]
@@ -372,6 +387,8 @@ namespace Antmicro.Renode.Peripherals.CPU
             None = 0, // No PSCI emulation - we have a firmware which handles the calls natively, or no PSCI interface
             SMC = 1,  // Emulate PSCI calls over SMC (Secure Monitor Call) instruction
             HVC = 2,  // Emulate PSCI calls over HVC (HyperVisor Call) instruction
+            SMCWithPowerDownDisabled = 3, // Native firmware; reject original-format CPU_SUSPEND powerdown states
+            SMCWithPowerDownRejectedAfterWfi = 4, // Same restriction, with an interrupt wait before rejection
         }
 
         protected struct SystemRegister
