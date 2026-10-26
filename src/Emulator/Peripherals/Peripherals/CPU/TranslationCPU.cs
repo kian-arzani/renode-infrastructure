@@ -323,6 +323,22 @@ namespace Antmicro.Renode.Peripherals.CPU
 
         public void InvalidateTranslationBlocks()
         {
+            // Native invalidation temporarily clears current_tb and mutates TB
+            // chains. DMA writes and other CPUs must not do it concurrently
+            // with this CPU's generated code, or take its execution lock while
+            // holding another CPU's lock. Drain on its own thread instead.
+            if(OnPossessedThread)
+            {
+                InvalidateTranslationBlocksInner();
+            }
+            else
+            {
+                InvokeInCpuThreadSafely(InvalidateTranslationBlocksInner);
+            }
+        }
+
+        private void InvalidateTranslationBlocksInner()
+        {
             lock(addressesToInvalidate)
             {
                 var count = (ulong)addressesToInvalidate.Count / 2;
