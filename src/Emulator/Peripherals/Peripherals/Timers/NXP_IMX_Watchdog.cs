@@ -146,6 +146,18 @@ namespace Antmicro.Renode.Peripherals.Timers
             interruptStatus.Value = false;
             UpdateInterrupt();
 
+            // If WICT is at least WT+1, the pretimeout threshold is already
+            // reached. Do not turn a negative interval into an unsigned limit
+            // or pass a zero limit to LimitTimer. The reset deadline remains WT.
+            if(interruptSteps <= 0)
+            {
+                interruptStatus.Value = true;
+                UpdateInterrupt();
+                wdogPhase = TimerPhase.Timeout;
+                ArmTimer(wdogTimer, (ulong)timeoutSteps * SubTicksPerHalfSecond);
+                return;
+            }
+
             wdogPhase = TimerPhase.Interrupt;
             ArmTimer(wdogTimer, (ulong)interruptSteps * SubTicksPerHalfSecond);
         }
