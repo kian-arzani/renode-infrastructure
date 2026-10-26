@@ -157,9 +157,9 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
 
             RegisterWithDomainControlTags(Registers.A53RCR1.Define(this, 0x1)
                 .WithFlag(0, FieldMode.Read, name: "A53_CORE0_ENABLE", valueProviderCallback: _ => true)
-                .WithFlag(1, name: "A53_CORE1_ENABLE", writeCallback: (_, val) => SetCoreEnable(1, val))
-                .WithFlag(2, name: "A53_CORE2_ENABLE", writeCallback: (_, val) => SetCoreEnable(2, val))
-                .WithFlag(3, name: "A53_CORE3_ENABLE", writeCallback: (_, val) => SetCoreEnable(3, val))
+                .WithFlag(1, name: "A53_CORE1_ENABLE", changeCallback: (_, val) => SetCoreEnable(1, val))
+                .WithFlag(2, name: "A53_CORE2_ENABLE", changeCallback: (_, val) => SetCoreEnable(2, val))
+                .WithFlag(3, name: "A53_CORE3_ENABLE", changeCallback: (_, val) => SetCoreEnable(3, val))
                 .WithTag("A53_RST_SLOW", 4, 3)
                 .WithReservedBits(7, 17));
 
@@ -353,7 +353,16 @@ namespace Antmicro.Renode.Peripherals.Miscellaneous
         {
             if(cpus[coreIndex] != null)
             {
-                cpus[coreIndex].IsHalted = !val;
+                if(val)
+                {
+                    // Deasserting ncpuporeset starts the core at the programmed
+                    // secure reset vector, just like A53RCR0 reset release.
+                    ReleaseCoreOnWrite(coreIndex);
+                }
+                else
+                {
+                    cpus[coreIndex].IsHalted = true;
+                }
             }
             var state = val ? "unhalted" : "halted";
             this.DebugLog("A53_CORE{0}_ENABLE={1}: core{0} {2}", coreIndex, val ? 1 : 0, state);
